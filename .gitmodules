@@ -1,0 +1,3 @@
+[submodule "postgres-decoderbufs"]
+	path = postgres-decoderbufs
+	url = https://github.com/debezium/postgres-decoderbufs.git

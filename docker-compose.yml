@@ -1,0 +1,99 @@
+version: '3.4'
+services:
+#  mysqldb:
+#    image: mysql:8.0
+#    ports:
+#      - 3306:3306
+#    volumes:
+#      #- ./mysql-data:/var/lib/mysql
+#      - ./db-init/mysql.sql:/docker-entrypoint-initdb.d/init.sql
+#    environment:
+#      - MYSQL_ALLOW_EMPTY_PASSWORD=true
+#      - MYSQL_ROOT_PASSWORD=
+#    healthcheck:
+#      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+#      timeout: 6s
+#      retries: 1
+#    command: --default-authentication-plugin=mysql_native_password
+  postgresdb:
+    container_name: postgresdb
+    image: postgresql-decoderbufs
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 5432:5432
+    volumes:
+      - ./db-init/postgres.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./db-init/postgresql.conf:/docker/postgresql.conf
+      - ./db-init/pg_hba.conf:/docker/pg_hba.conf
+    command: --config_file=/docker/postgresql.conf --hba_file=/docker/pg_hba.conf
+    environment:
+      - POSTGRES_PASSWORD=pg
+      - POSTGRES_USER=pguser
+      - POSTGRES_DATABASE=postgres
+  zookeeper:
+    image: confluentinc/cp-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: "2181"
+      ZOOKEEPER_TICK_TIME: "2000"
+  kafka:
+    hostname: kafka
+    image: confluentinc/cp-enterprise-kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://:9092"
+      KAFKA_METRIC_REPORTERS: io.confluent.metrics.reporter.ConfluentMetricsReporter
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: localhost:9092
+      CONFLUENT_METRICS_REPORTER_ZOOKEEPER_CONNECT: zookeeper:2181
+      CONFLUENT_METRICS_REPORTER_TOPIC_REPLICAS: 1
+    ports:
+      - "9092:9092"
+  schema-registry:
+    hostname: schema-registry
+    image: confluentinc/cp-schema-registry
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: "zookeeper:2181"
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: "PLAINTEXT://kafka:9092"
+    depends_on:
+      - zookeeper
+      - kafka
+    ports:
+      - '8081:8081'
+  connect:
+    hostname: connect
+    image: confluentinc/cp-kafka-connect
+    depends_on:
+    - schema-registry
+    - kafka
+    ports:
+    - '8083:8083'
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: "kafka:9092"
+      CONNECT_REST_ADVERTISED_HOST_NAME: target-connect
+      CONNECT_PRODUCER_COMPRESSION_TYPE: lz4
+      CONNECT_GROUP_ID: connect
+      CONNECT_KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
+      CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      CONNECT_VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
+      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      CONNECT_CONFIG_STORAGE_TOPIC: connect_config
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_STORAGE_TOPIC: connect_offset
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_TOPIC: connect_status
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_INTERNAL_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_INTERNAL_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_INTERNAL_KEY_CONVERTER_SCHEMAS_ENABLE: 'false'
+      CONNECT_INTERNAL_VALUE_CONVERTER_SCHEMAS_ENABLE: 'false'
+      CONNECT_LOG4J_LOGGERS: 'org.reflections=ERROR'
+    volumes:  
+      - ./debezium-connector-postgres:/usr/share/confluent-hub-components/debezium-connector-postgres
+        #- ./debezium-connector-postgres/debezium-connector-postgres-1.8.1.Final.jar:/usr/share/confluent-hub-components/debezium-connector-postgres/debezium-connector-postgres.jar
+        # - ./kafka-connect.properties:/etc/kafka-connect/kafka-connect.properties
+

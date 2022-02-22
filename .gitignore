@@ -1,0 +1,8 @@
+debezium-connector-postgres
+debezium-connector-postgres*.tar.gz
+.gradle
+.idea
+build
+gradle
+gradlew
+gradlew.bat
