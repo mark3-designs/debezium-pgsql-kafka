@@ -3,7 +3,7 @@
 
 case "$1" in
 topics)
-  docker exec -it debeziumpostgreskafka_kafka_1 kafka-topics --bootstrap-server kafka:9092 --list
+  docker-compose exec kafka kafka-topics --bootstrap-server kafka:9092 --list
   ;;
 schemas)
   #docker exec -it debeziumpostgreskafka_kafka_1 kafka-console-consumer --from-beginning --bootstrap-server kafka:9092 --topic _schemas 
@@ -15,8 +15,21 @@ get-schema)
   echo
   ;;
 watch)
-  echo "CTRL+C to stop."
-  docker exec -it debeziumpostgreskafka_kafka_1 kafka-console-consumer --bootstrap-server kafka:9092 --topic "$2"
+  echo "CTRL+C to stop." >&2
+  #docker exec -it debeziumpostgreskafka_kafka_1 \
+	#--formatter io.confluent.kafka.formatter.AvroMessageFormatter \
+  docker-compose exec connect \
+	kafka-console-consumer --bootstrap-server kafka:9092 \
+	--from-beginning \
+	--topic "$2"
+  ;;
+decode)
+  echo "CTRL+C to stop." >&2
+  docker-compose exec connect \
+	kafka-avro-console-consumer --bootstrap-server kafka:9092 \
+	--from-beginning \
+	--property schema.registry.url=http://schema-registry:8081 \
+	--topic "$2"
   ;;
 *)
 cat << EOF

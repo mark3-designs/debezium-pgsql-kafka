@@ -40,6 +40,8 @@ cat << EOF >/tmp/post.json
     "database.password": "test",
     "database.dbname": "dbz",
     "database.server.name": "postgresdb",
+    "value.converter": "io.confluent.connect.avro.AvroConverter",
+    "value.converter.schema.registry.url": "http://schema-registry:8081",
     "schema.include.list": "public"
   }
 }
